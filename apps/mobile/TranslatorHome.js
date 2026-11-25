@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { POPULAR_LANGUAGES } from './ProfileSetup';
 import ProfileScreen, { AvatarImage } from './ProfileScreen';
+import ConversationScreen from './ConversationScreen';
 
 const ink = '#112d33', teal = '#008e85';
 const icons = {
@@ -581,6 +582,7 @@ export default function TranslatorHome({ profile }) {
                   onPress={() => {
                     if (name === 'Profile') setActiveTab('Profile');
                     else if (name === 'Translate') setActiveTab('Translate');
+                    else if (name === 'Conversation') setActiveTab('Conversation');
                     else open(name);
                   }}
                   style={[s.navTab, isActive && s.navTabActive, { paddingVertical: Math.round(6 * scale) }]}
@@ -689,7 +691,7 @@ export default function TranslatorHome({ profile }) {
               sOrb={sOrb}
               sMicTitle={sMicTitle}
               sCaption={sCaption}
-              onOpenVoice={() => open('Voice translation')}
+              onOpenVoice={() => setActiveTab('Conversation')}
             />
 
             {/* Quick Travel Shortcuts */}
@@ -721,6 +723,7 @@ export default function TranslatorHome({ profile }) {
                   onPress={() => {
                     if (name === 'Profile') setActiveTab('Profile');
                     else if (name === 'Translate') setActiveTab('Translate');
+                    else if (name === 'Conversation') setActiveTab('Conversation');
                     else open(name);
                   }}
                   style={[s.navTab, isActive && s.navTabActive, { paddingVertical: Math.round(6 * scale) }]}
@@ -732,6 +735,20 @@ export default function TranslatorHome({ profile }) {
             })}
           </View>
         </View>
+
+        {/* Conversation View */}
+        {activeTab === 'Conversation' && (
+          <View style={StyleSheet.absoluteFill}>
+            <ConversationScreen
+              source={source}
+              target={target}
+              onUpdateSource={setSource}
+              onUpdateTarget={setTarget}
+              onBack={() => setActiveTab('Translate')}
+              scale={scale}
+            />
+          </View>
+        )}
 
         {/* Language Selection Modal */}
         <Modal visible={!!panel} transparent animationType="fade" onRequestClose={() => setPanel('')}>
