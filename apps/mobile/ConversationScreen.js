@@ -577,8 +577,19 @@ export default function ConversationScreen({
       })
     : 0;
 
-// Voice speech playback will be integrated in the speech synthesis engine
-const speakTranslation = async (text, langCode) => {};
+  // Play Speech Voice
+  const speakTranslation = async (text, langCode) => {
+    try {
+      await Speech.stop();
+      await Speech.speak(text, {
+        language: langCode,
+        pitch: 1.0,
+        rate: 0.95,
+      });
+    } catch (err) {
+      console.warn('Speech playback error:', err);
+    }
+  };
 
   // Perform Live Voice Simulation / Speech Translation
   const triggerListening = (phraseKey = null, customText = null) => {

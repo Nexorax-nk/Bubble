@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Speech from 'expo-speech';
 import Svg, { Path } from 'react-native-svg';
 import { POPULAR_LANGUAGES } from './ProfileSetup';
 import ProfileScreen, { AvatarImage } from './ProfileScreen';
@@ -542,6 +543,22 @@ export default function TranslatorHome({ profile }) {
     setHistory(items => [{ source, target, row }, ...items]);
     setPanel('');
   };
+  const read = async entry => {
+    try {
+      await Speech.stop();
+      Speech.speak(phraseIn(entry.row, entry.target), {
+        language: entry.target.code,
+        onError: () => {
+          setNotice('Playback is unavailable for this voice.');
+          setPanel('Playback');
+        },
+      });
+    } catch {
+      setNotice('Playback is unavailable on this device.');
+      setPanel('Playback');
+    }
+  };
+  useEffect(() => () => { Speech.stop().catch(() => {}); }, []);
 
   const phraseList = phrases.filter(row => phraseIn(row, source).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
 
@@ -805,7 +822,7 @@ export default function TranslatorHome({ profile }) {
                 {panel === 'History' &&
                   (history.length ? (
                     history.map((entry, i) => (
-                      <Button key={i} onPress={() => open('Playback')} style={s.item}>
+                      <Button key={i} onPress={() => read(entry)} style={s.item}>
                         <Text style={s.line}>{phraseIn(entry.row, entry.source)}</Text>
                         <Text style={s.caption}>{phraseIn(entry.row, entry.target)}</Text>
                       </Button>
