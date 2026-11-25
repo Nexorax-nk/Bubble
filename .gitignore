@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Expo & Build outputs
+.expo/
+web-build/
+dist/
+
+# Native builds
+android/
+ios/
+
+# Environment and logs
+*.log
+.env
+.env*.local
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Scratch and temporary files
+scratch*
+*.tmp

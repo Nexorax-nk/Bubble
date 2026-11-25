@@ -1,0 +1,9 @@
+{
+  "name": "bubble",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "mobile": "npm start --workspace @bubble/mobile",
+    "preview": "npm run preview --workspace @bubble/mobile"
+  }
+}
