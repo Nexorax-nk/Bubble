@@ -27,6 +27,277 @@ function Icon({ name, size = 22, color = teal }) {
 
 const tabs = ['Translate', 'Conversation', 'Phrases', 'Profile'];
 
+function AnimatedWave({ reverse, scale = 1, bars, isListening }) {
+  const baseHeights = [8, 16, 32, 22, 11];
+  const barW = Math.max(3.5, Math.round(3.6 * scale));
+  const barGap = Math.max(4.5, Math.round(5 * scale));
+  const barIndices = reverse ? [4, 3, 2, 1, 0] : [0, 1, 2, 3, 4];
+
+  return (
+    <View style={[s.row, { gap: barGap, alignItems: 'center', height: Math.round(50 * scale), justifyContent: 'center' }]}>
+      {barIndices.map((idx, pos) => {
+        const baseH = baseHeights[idx];
+        const barAnim = bars[idx];
+        const barHeight = barAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [
+            Math.max(4, Math.round(baseH * (isListening ? 0.35 : 0.5) * scale)),
+            Math.round(baseH * (isListening ? 1.45 : 1.15) * scale),
+          ],
+          extrapolate: 'clamp',
+        });
+
+        return (
+          <Animated.View
+            key={pos}
+            style={{
+              height: barHeight,
+              width: barW,
+              borderRadius: barW / 2,
+              backgroundColor: isListening ? '#00f5d4' : '#2dd4bf',
+              shadowColor: isListening ? '#00f5d4' : '#14b8a6',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: isListening ? 0.7 : 0.2,
+              shadowRadius: isListening ? 5 : 2,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+function AnimatedMicSection({ scale, sOrb, sMicTitle, sCaption, onOpenVoice, transitionAnim, dropDistance = 300 }) {
+  const [isListening, setIsListening] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const hoverAnim = useRef(new Animated.Value(0)).current;
+  const pressAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  const waveBars = useRef([
+    new Animated.Value(0.2),
+    new Animated.Value(0.5),
+    new Animated.Value(0.9),
+    new Animated.Value(0.6),
+    new Animated.Value(0.3),
+  ]).current;
+
+  // Ambient backlight pulse when listening
+  useEffect(() => {
+    let pulseLoop;
+    if (isListening) {
+      pulseAnim.setValue(0);
+      pulseLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1200,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0,
+            duration: 1200,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+        ])
+      );
+      pulseLoop.start();
+    } else {
+      pulseAnim.setValue(0);
+    }
+    return () => {
+      if (pulseLoop) pulseLoop.stop();
+    };
+  }, [isListening, pulseAnim]);
+
+  // Traditional harmonic rolling sine wave (Google / Siri style)
+  useEffect(() => {
+    const duration = isListening ? 380 : 700;
+    const staggerDelay = isListening ? 65 : 115;
+
+    const barLoops = waveBars.map((bar, i) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * staggerDelay),
+          Animated.timing(bar, {
+            toValue: 1,
+            duration: duration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+          Animated.timing(bar, {
+            toValue: 0,
+            duration: duration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+    });
+
+    barLoops.forEach(l => l.start());
+
+    return () => {
+      barLoops.forEach(l => l.stop());
+    };
+  }, [isListening, waveBars]);
+
+  // Hover spring animation (scale and depth only, no vertical movement)
+  useEffect(() => {
+    Animated.spring(hoverAnim, {
+      toValue: isHovered ? 1 : 0,
+      friction: 6,
+      tension: 110,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, [isHovered, hoverAnim]);
+
+  const handlePressIn = () => {
+    Animated.spring(pressAnim, {
+      toValue: 0.92,
+      friction: 5,
+      tension: 220,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressAnim, {
+      toValue: 1,
+      friction: 4,
+      tension: 140,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  };
+
+  const handleClick = () => {
+    onOpenVoice();
+  };
+
+  const hoverScale = hoverAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.05],
+  });
+
+  const ambientGlowOpacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.48],
+  });
+
+  const wavesOpacity = transitionAnim
+    ? transitionAnim.interpolate({
+        inputRange: [0, 0.22],
+        outputRange: [1, 0],
+        extrapolate: 'clamp',
+      })
+    : 1;
+
+  const micGlideY = transitionAnim
+    ? transitionAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, dropDistance],
+      })
+    : 0;
+
+  const micGlideScale = transitionAnim
+    ? transitionAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 86 / 114],
+      })
+    : 1;
+
+  const micHandoffOpacity = transitionAnim
+    ? transitionAnim.interpolate({
+        inputRange: [0, 0.94, 1],
+        outputRange: [1, 1, 0],
+        extrapolate: 'clamp',
+      })
+    : 1;
+
+  return (
+    <View style={[s.micArea, { marginVertical: Math.round(8 * scale), overflow: 'visible', zIndex: 9999 }]}>
+      <View style={[s.row, { gap: Math.round(12 * scale), alignItems: 'center', justifyContent: 'center', overflow: 'visible' }]}>
+        <Animated.View style={{ opacity: wavesOpacity }}>
+          <AnimatedWave scale={scale} bars={waveBars} isListening={isListening} />
+        </Animated.View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isListening ? 'Stop listening' : 'Tap to speak'}
+          onPress={handleClick}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onHoverIn={() => setIsHovered(true)}
+          onHoverOut={() => setIsHovered(false)}
+          style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: Math.round(6 * scale),
+          }}
+        >
+          {/* Soft ambient backlight glow behind the 3D ball (No circular outline rings) */}
+          {(isListening || isHovered) && (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                width: sOrb * 1.12,
+                height: sOrb * 1.12,
+                borderRadius: (sOrb * 1.12) / 2,
+                backgroundColor: '#1ae5cb',
+                opacity: isListening ? ambientGlowOpacity : 0.25,
+              }}
+            />
+          )}
+
+          {/* 3D Ball Container: Pure 3D sphere with hover/press scale and slow fluid glide down */}
+          <Animated.View
+            style={{
+              opacity: micHandoffOpacity,
+              transform: [
+                { translateY: micGlideY },
+                { scale: micGlideScale },
+                { scale: hoverScale },
+                { scale: pressAnim },
+              ],
+            }}
+          >
+            <View
+              style={[
+                s.halo,
+                {
+                  width: sOrb,
+                  height: sOrb,
+                  borderRadius: sOrb / 2,
+                  shadowColor: isListening ? '#00bba8' : '#014e47',
+                  shadowOffset: { width: 0, height: isHovered ? 12 : 8 },
+                  shadowOpacity: isHovered ? 0.48 : 0.35,
+                  shadowRadius: isHovered ? 22 : 16,
+                  elevation: isHovered ? 12 : 8,
+                },
+              ]}
+            >
+              {/* 3D Glossy Ball Image slightly reduced for refined proportion */}
+              <Image
+                source={require('./assets/home/microphone.png')}
+                resizeMode="contain"
+                style={{ width: '88%', height: '88%' }}
+              />
+            </View>
+          </Animated.View>
+        </Pressable>
+
+        <Animated.View style={{ opacity: wavesOpacity }}>
+          <AnimatedWave reverse scale={scale} bars={waveBars} isListening={isListening} />
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
 function ThreeDSwapButton({ onPress, size, scale, rotation }) {
   const [isHovered, setIsHovered] = useState(false);
   const pressAnim = useRef(new Animated.Value(1)).current;
@@ -206,6 +477,9 @@ export default function TranslatorHome({ profile }) {
   const sPillH = Math.round(44 * scale);
   const sPillFont = Math.round(13.5 * scale);
   const sPillFlag = Math.round(18 * scale);
+  const sOrb = Math.round(114 * scale);
+  const sMicTitle = Math.round(20 * scale);
+  const sCaption = Math.round(13 * scale);
   const sNavIcon = Math.round(20 * scale);
   const sNavText = Math.round(11 * scale);
 
@@ -389,14 +663,14 @@ export default function TranslatorHome({ profile }) {
               </View>
             </View>
 
-            {/* Mic Action Section */}
-            <View style={s.micArea}>
-              <Pressable style={s.basicMicBtn}>
-                <Icon name="Mic" size={32} color="#ffffff" />
-              </Pressable>
-              <Text style={s.micTitle}>Tap to speak</Text>
-              <Text style={s.caption}>Translate into {target.name}</Text>
-            </View>
+            {/* 3D Voice Mic with Waveform Visualizers */}
+            <AnimatedMicSection
+              scale={scale}
+              sOrb={sOrb}
+              sMicTitle={sMicTitle}
+              sCaption={sCaption}
+              onOpenVoice={() => open('Voice translation')}
+            />
           </ScrollView>
 
           {/* Bottom Navigation */}
