@@ -27,6 +27,164 @@ function Icon({ name, size = 22, color = teal }) {
 
 const tabs = ['Translate', 'Conversation', 'Phrases', 'Profile'];
 
+function ThreeDSwapButton({ onPress, size, scale, rotation }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const pressAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(pressAnim, {
+      toValue: 0.9,
+      useNativeDriver: Platform.OS !== 'web',
+      speed: 30,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressAnim, {
+      toValue: 1,
+      useNativeDriver: Platform.OS !== 'web',
+      speed: 25,
+      bounciness: 6,
+    }).start();
+  };
+
+  const iconSize = Math.round(size * 0.48);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Swap languages"
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onHoverIn={() => setIsHovered(true)}
+      onHoverOut={() => setIsHovered(false)}
+      style={{
+        marginTop: Math.round(18 * scale),
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* Outer ambient glow backlight */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          width: size * 1.22,
+          height: size * 1.22,
+          borderRadius: (size * 1.22) / 2,
+          backgroundColor: '#1ae5cb',
+          opacity: isHovered ? 0.35 : 0.2,
+        }}
+      />
+
+      {/* 3D Sphere Body with Press Scale Animation */}
+      <Animated.View
+        style={{
+          transform: [{ scale: pressAnim }],
+        }}
+      >
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            shadowColor: '#005f56',
+            shadowOffset: { width: 0, height: isHovered ? 6 : 4 },
+            shadowOpacity: isHovered ? 0.5 : 0.38,
+            shadowRadius: isHovered ? 12 : 8,
+            elevation: isHovered ? 8 : 6,
+            overflow: 'hidden',
+            position: 'relative',
+            backgroundColor: '#008b80',
+          }}
+        >
+          {/* Multi-stop 3D Sphere Radial/Linear Lighting Gradient */}
+          <LinearGradient
+            colors={['#5bf8dc', '#22d3b6', '#00a392', '#006e64', '#00433c']}
+            start={{ x: 0.1, y: 0.05 }}
+            end={{ x: 0.9, y: 0.95 }}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Top-Left Glossy Specular Highlight Pill */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: Math.round(size * 0.07),
+              left: Math.round(size * 0.15),
+              width: Math.round(size * 0.54),
+              height: Math.round(size * 0.26),
+              borderRadius: Math.round(size * 0.26) / 2,
+              transform: [{ rotate: '-18deg' }],
+              overflow: 'hidden',
+            }}
+          >
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.75)', 'rgba(255, 255, 255, 0.06)']}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+
+          {/* Bottom Rim Bounce Light */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              bottom: 1,
+              left: Math.round(size * 0.15),
+              width: Math.round(size * 0.7),
+              height: Math.round(size * 0.22),
+              borderRadius: Math.round(size * 0.22) / 2,
+              overflow: 'hidden',
+            }}
+          >
+            <LinearGradient
+              colors={['rgba(90, 250, 225, 0)', 'rgba(90, 250, 225, 0.45)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+
+          {/* Centered High-Contrast 3D White Swap Arrows */}
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View
+              style={{
+                transform: [{ rotate: rotation }],
+              }}
+            >
+              <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
+                {/* Subtle drop shadow underneath arrows for 3D depth */}
+                <Path
+                  d="M19 8H5M5 8l3.5-3.5M5 8l3.5 3.5 M5 16h14m0 0l-3.5-3.5M19 16l-3.5 3.5"
+                  stroke="rgba(0, 48, 42, 0.42)"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  transform="translate(0, 1)"
+                />
+                {/* Crisp foreground white arrows */}
+                <Path
+                  d="M19 8H5M5 8l3.5-3.5M5 8l3.5 3.5 M5 16h14m0 0l-3.5-3.5M19 16l-3.5 3.5"
+                  stroke="#ffffff"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Animated.View>
+          </View>
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 function Button({ children, style, onPress, label }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [style, pressed && { opacity: 0.74 }]}>
@@ -66,6 +224,25 @@ export default function TranslatorHome({ profile }) {
   const [source, setSource] = useState(profile?.language || POPULAR_LANGUAGES[0]);
   const [target, setTarget] = useState(source.code === 'ja' ? POPULAR_LANGUAGES[0] : POPULAR_LANGUAGES[1]);
   const [panel, setPanel] = useState('');
+
+  const swapAnim = useRef(new Animated.Value(0)).current;
+  const [swapped, setSwapped] = useState(false);
+
+  const handleSwap = () => {
+    Animated.spring(swapAnim, {
+      toValue: swapped ? 0 : 1,
+      friction: 5,
+      tension: 90,
+      useNativeDriver: true,
+    }).start();
+    setSwapped(!swapped);
+    swap();
+  };
+
+  const swapRotation = swapAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   const open = name => setPanel(name);
   const swap = () => {
@@ -188,10 +365,13 @@ export default function TranslatorHome({ profile }) {
                   </Pressable>
                 </View>
 
-                {/* Swap Button */}
-                <Pressable onPress={swap} style={s.swapBtn}>
-                  <Icon name="Swap" size={20} color="#ffffff" />
-                </Pressable>
+                {/* 3D Spherical Swap Button */}
+                <ThreeDSwapButton
+                  onPress={handleSwap}
+                  size={Math.round(42 * scale)}
+                  scale={scale}
+                  rotation={swapRotation}
+                />
 
                 <View style={s.selectorCol}>
                   <Text style={[s.selectorLabel, { fontSize: Math.round(11 * scale) }]}>To</Text>
