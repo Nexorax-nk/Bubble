@@ -25,6 +25,13 @@ function Icon({ name, size = 22, color = teal }) {
   );
 }
 
+const phrases = [
+  ['How much is this?', 'これはいくらですか？', '¿Cuánto cuesta esto?', 'यह कितने का है?', 'Combien ça coûte ?', 'Wie viel kostet das?', '这个多少钱？', '이거 얼마예요?', 'Quanto costa?', 'Quanto custa?', 'كم سعر هذا؟', 'Сколько это стоит?', 'อันนี้ราคาเท่าไหร่', 'Cái này giá bao nhiêu?'],
+  ['Thank you.', 'ありがとうございます。', 'Gracias.', 'धन्यवाद।', 'Merci.', 'Danke.', '谢谢。', '감사합니다.', 'Grazie.', 'Obrigado.', 'شكراً.', 'Спасибо.', 'ขอบคุณ', 'Cảm ơn.'],
+  ['Where is the station?', '駅はどこですか？', '¿Dónde está la estación?', 'स्टेशन कहाँ है?', 'Où est la gare ?', 'Wo ist der Bahnhof?', '车站在哪里？', '역이 어디예요?', 'Dov’è la stazione?', 'Onde fica a estação?', 'أين المحطة؟', 'Где станция?', 'สถานีอยู่ที่ไหน', 'Nhà ga ở đâu?'],
+];
+const phraseCodes = ['en','ja','es','hi','fr','de','zh','ko','it','pt','ar','ru','th','vi'];
+const phraseIn = (row, lang) => row[phraseCodes.indexOf(lang.code)];
 const tabs = ['Translate', 'Conversation', 'Phrases', 'Profile'];
 
 function AnimatedWave({ reverse, scale = 1, bars, isListening }) {
@@ -477,6 +484,9 @@ export default function TranslatorHome({ profile }) {
   const sPillH = Math.round(44 * scale);
   const sPillFont = Math.round(13.5 * scale);
   const sPillFlag = Math.round(18 * scale);
+  const sShortcutPad = Math.round(18 * scale);
+  const sShortcutIcon = Math.round(28 * scale);
+  const sShortcutText = Math.round(13 * scale);
   const sOrb = Math.round(114 * scale);
   const sMicTitle = Math.round(20 * scale);
   const sCaption = Math.round(13 * scale);
@@ -498,6 +508,9 @@ export default function TranslatorHome({ profile }) {
   const [source, setSource] = useState(profile?.language || POPULAR_LANGUAGES[0]);
   const [target, setTarget] = useState(source.code === 'ja' ? POPULAR_LANGUAGES[0] : POPULAR_LANGUAGES[1]);
   const [panel, setPanel] = useState('');
+  const [history, setHistory] = useState([]);
+  const [query, setQuery] = useState('');
+  const [notice, setNotice] = useState('');
 
   const swapAnim = useRef(new Animated.Value(0)).current;
   const [swapped, setSwapped] = useState(false);
@@ -518,11 +531,18 @@ export default function TranslatorHome({ profile }) {
     outputRange: ['0deg', '180deg'],
   });
 
-  const open = name => setPanel(name);
+  const open = name => { setQuery(''); setNotice(''); setPanel(name); };
   const swap = () => {
     setSource(target);
     setTarget(source);
   };
+
+  const usePhrase = row => {
+    setHistory(items => [{ source, target, row }, ...items]);
+    setPanel('');
+  };
+
+  const phraseList = phrases.filter(row => phraseIn(row, source).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
 
   const choose = lang => {
     if (panel === 'I speak') {
@@ -671,6 +691,24 @@ export default function TranslatorHome({ profile }) {
               sCaption={sCaption}
               onOpenVoice={() => open('Voice translation')}
             />
+
+            {/* Quick Travel Shortcuts */}
+            <View style={[s.shortcutsRow, { gap: Math.round(12 * scale) }]}>
+              {[
+                { name: 'Type', icon: 'Type' },
+                { name: 'Camera', icon: 'Camera' },
+                { name: 'Phrases', icon: 'Phrases' },
+              ].map(item => (
+                <Button
+                  key={item.name}
+                  onPress={() => open(item.name === 'Phrases' ? 'Phrasebook' : item.name)}
+                  style={[s.shortcutCard, { paddingVertical: sShortcutPad }]}
+                >
+                  <Icon name={item.icon} size={sShortcutIcon} color={teal} />
+                  <Text style={[s.shortcutLabel, { fontSize: sShortcutText }]}>{item.name}</Text>
+                </Button>
+              ))}
+            </View>
           </ScrollView>
 
           {/* Bottom Navigation */}
@@ -713,6 +751,51 @@ export default function TranslatorHome({ profile }) {
                       <Text style={s.line}>{lang.flag}   {lang.name}</Text>
                     </Button>
                   ))}
+                {['Type', 'Conversation', 'Phrasebook', 'Voice translation', 'Camera'].includes(panel) && (
+                  <>
+                    <Text style={s.help}>
+                      {
+                        ({
+                          Type: 'Search a bundled phrase to translate.',
+                          Conversation: 'Choose a phrase for this turn. Swap languages on the home screen for the reply.',
+                          Phrasebook: 'Choose a travel phrase to translate.',
+                          Camera: 'Camera translation is planned. Try a bundled travel phrase below.',
+                          'Voice translation': 'Voice recognition is planned. Try a sample phrase for this language pair.',
+                        })[panel]
+                      }
+                    </Text>
+                    {panel === 'Type' && <TextInput placeholder="Search phrases" value={query} onChangeText={setQuery} style={s.input} />}
+                    {phraseList.map(row => (
+                      <Button key={row[0]} onPress={() => usePhrase(row)} style={s.item}>
+                        <Text style={s.line}>{phraseIn(row, source)}</Text>
+                        <Text style={s.caption}>{phraseIn(row, target)}</Text>
+                      </Button>
+                    ))}
+                    {!phraseList.length && <Text style={s.help}>No matching bundled phrase.</Text>}
+                  </>
+                )}
+                {panel === 'Notifications' && <Text style={s.help}>You're all caught up.</Text>}
+                {panel === 'Playback' && <Text style={s.help}>{notice}</Text>}
+                {panel === 'Profile' && (
+                  <View style={s.item}>
+                    <Text style={s.line}>{currentProfile?.fullName || 'Traveler'}</Text>
+                    <Text style={s.caption}>
+                      {currentProfile?.language?.name || source.name}
+                      {currentProfile?.country?.name ? ' · ' + currentProfile.country.name : ''}
+                    </Text>
+                  </View>
+                )}
+                {panel === 'History' &&
+                  (history.length ? (
+                    history.map((entry, i) => (
+                      <Button key={i} onPress={() => open('Playback')} style={s.item}>
+                        <Text style={s.line}>{phraseIn(entry.row, entry.source)}</Text>
+                        <Text style={s.caption}>{phraseIn(entry.row, entry.target)}</Text>
+                      </Button>
+                    ))
+                  ) : (
+                    <Text style={s.help}>Your translated phrases will appear here.</Text>
+                  ))}
               </ScrollView>
             </View>
           </View>
@@ -752,6 +835,9 @@ const s = StyleSheet.create({
   basicMicBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: teal, alignItems: 'center', justifyContent: 'center', elevation: 4 },
   micTitle: { fontSize: 20, fontWeight: '800', color: ink, marginTop: 8 },
   caption: { fontSize: 13, fontWeight: '500', color: '#5f8086' },
+  shortcutsRow: { flexDirection: 'row', gap: 12 },
+  shortcutCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 22, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: '#e2f4f1', shadowColor: '#0a3c39', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  shortcutLabel: { fontSize: 13, fontWeight: '700', color: ink },
   bottomNav: { flexDirection: 'row', backgroundColor: '#ffffff', paddingHorizontal: 12, paddingTop: 10, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: '#e0f1ee', shadowColor: '#0a3c39', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 4 },
   navTab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6, borderRadius: 20 },
   navTabActive: { backgroundColor: '#d8f6f2' },
@@ -760,6 +846,8 @@ const s = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(14,49,52,.32)', alignItems: 'center', justifyContent: 'flex-end' },
   sheet: { maxHeight: '75%', backgroundColor: '#f6fcfb', padding: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   sheetTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: ink },
+  help: { color: '#486367', marginVertical: 12, lineHeight: 21 },
   item: { paddingVertical: 13, gap: 3, borderBottomWidth: 1, borderColor: '#d8ebe8' },
+  input: { backgroundColor: 'white', borderWidth: 1, borderColor: '#bedfdb', borderRadius: 12, padding: 12, color: ink },
   line: { fontSize: 15, color: ink, fontWeight: '600' },
 });
